@@ -4,20 +4,79 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import List
+from contextlib import asynccontextmanager
 
 import models
 import schemas
 import crud
 import auth
-from database import engine, get_db
+from database import engine, get_db, SessionLocal
 
-# Create database tables
-models.Base.metadata.create_all(bind=engine)
+# Startup function to create admin
+def create_admin_on_startup():
+    """Create admin user if it doesn't exist"""
+    print("🚀 Running startup tasks...")
+    
+    # Create all tables
+    print("📊 Creating database tables...")
+    models.Base.metadata.create_all(bind=engine)
+    print("✅ Database tables created/verified")
+    
+    # Create admin user
+    db = SessionLocal()
+    try:
+        admin = db.query(models.User).filter(models.User.username == "admin").first()
+        
+        if not admin:
+            print("👤 Creating default admin user...")
+            admin_user = models.User(
+                username="admin",
+                email="admin@society.com",
+                hashed_password=auth.get_password_hash("admin123"),
+                full_name="System Administrator",
+                phone_number="1234567890",
+                role=models.UserRole.ADMIN,
+                is_active=True
+            )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
+            
+            print("=" * 50)
+            print("✅ Admin user created successfully!")
+            print("=" * 50)
+            print("\n📝 Default Login Credentials:")
+            print(f"   Username: {admin_user.username}")
+            print(f"   Password: admin123")
+            print(f"   Email: {admin_user.email}")
+            print(f"   Role: {admin_user.role}")
+            print("\n⚠️  Please change the password after first login!")
+            print("=" * 50 + "\n")
+        else:
+            print(f"✅ Admin user already exists (ID: {admin.id})")
+            
+    except Exception as e:
+        print(f"❌ Error during startup: {e}")
+        db.rollback()
+    finally:
+        db.close()
+    
+    print("✅ Startup tasks completed!\n")
+
+# Lifespan context manager for startup/shutdown events
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    create_admin_on_startup()
+    yield
+    # Shutdown (cleanup if needed)
+    print("👋 Shutting down...")
 
 app = FastAPI(
     title="Society Management API",
     description="API for managing society operations including residents, maintenance, and vendors",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware
@@ -404,7 +463,7 @@ async def delete_vendor(
 @app.get("/", tags=["Root"])
 async def root():
     """Root endpoint"""
-    return {"message": "Society Management API", "version": "1.0.0"}
+    return {"message": "Society Management API", "version": "1.0.0", "status": "running"}
 
 if __name__ == "__main__":
     import uvicorn
