@@ -1,7 +1,7 @@
 # Core Framework
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
-pydantic[email]==2.10.3
+pydantic==2.10.3
 
 # Database
 sqlalchemy==2.0.36
@@ -16,11 +16,11 @@ python-multipart==0.0.17
 # Environment Variables
 python-dotenv==1.0.1
 
-# Additional Utilities
+# Email validation (must be separate, not pydantic[email])
 email-validator==2.2.0
 
 # ASGI Server (Production)
 gunicorn==23.0.0
 
-# Package manager
+# Additional utilities
 packaging==24.2
